@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { Sidebar } from "@/components/layout/Sidebar";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Urja Station - EV Charging Station Booking",
+  description:
+    "Find, book, and charge your electric vehicle at stations across Nepal",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        </head>
+        <body className="min-h-screen bg-background antialiased">
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </div>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}

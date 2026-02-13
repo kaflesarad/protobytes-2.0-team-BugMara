@@ -125,13 +125,13 @@ export default function MyBookingsPage() {
         </p>
 
         {/* Tabs */}
-        <div className="mt-6 flex gap-1 rounded-lg border border-border bg-muted p-1">
+        <div className="mt-6 flex gap-1 rounded-lg border border-border bg-muted p-1 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex flex-1 items-center justify-center gap-1 sm:gap-1.5 rounded-md px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap",
                 activeTab === tab.value
                   ? "bg-white text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
