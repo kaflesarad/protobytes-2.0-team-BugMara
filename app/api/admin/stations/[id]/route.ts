@@ -61,7 +61,18 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
 
-    const station = await Station.findByIdAndUpdate(id, body, {
+    // Whitelist updatable fields
+    const allowedFields: Record<string, unknown> = {};
+    const whitelist = [
+      "name", "location", "telephone", "vehicleTypes",
+      "operatingHours", "chargingPorts", "pricing",
+      "amenities", "photos", "isActive",
+    ];
+    for (const key of whitelist) {
+      if (body[key] !== undefined) allowedFields[key] = body[key];
+    }
+
+    const station = await Station.findByIdAndUpdate(id, allowedFields, {
       new: true,
       runValidators: true,
     }).lean();
@@ -100,9 +111,20 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
+    // Whitelist patchable fields
+    const patchable: Record<string, unknown> = {};
+    const patchWhitelist = [
+      "name", "location", "telephone", "vehicleTypes",
+      "operatingHours", "chargingPorts", "pricing",
+      "amenities", "photos", "isActive",
+    ];
+    for (const key of patchWhitelist) {
+      if (body[key] !== undefined) patchable[key] = body[key];
+    }
+
     const station = await Station.findByIdAndUpdate(
       id,
-      { $set: body },
+      { $set: patchable },
       { new: true }
     ).lean();
 

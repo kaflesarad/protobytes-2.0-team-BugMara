@@ -66,6 +66,7 @@ export default function EditStationPage({
 }) {
   const router = useRouter();
   const [stationId, setStationId] = useState("");
+  const [station, setStation] = useState<IStation | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -115,28 +116,29 @@ export default function EditStationPage({
         const res = await fetch(`/api/admin/stations/${stationId}`);
         if (res.ok) {
           const data = await res.json();
-          const station: IStation = data.station ?? data;
+          const s: IStation = data.station ?? data;
+          setStation(s);
 
           reset({
-            name: station.name,
-            address: station.location?.address ?? "",
-            city: station.location?.city ?? "",
-            province: station.location?.province ?? "",
-            telephone: station.telephone ?? "",
-            lat: station.location?.coordinates?.lat ?? 0,
-            lng: station.location?.coordinates?.lng ?? 0,
+            name: s.name,
+            address: s.location?.address ?? "",
+            city: s.location?.city ?? "",
+            province: s.location?.province ?? "",
+            telephone: s.telephone ?? "",
+            lat: s.location?.coordinates?.lat ?? 0,
+            lng: s.location?.coordinates?.lng ?? 0,
             chargingPorts:
-              station.chargingPorts?.map((p) => ({
+              s.chargingPorts?.map((p) => ({
                 portNumber: p.portNumber,
                 connectorType: p.connectorType,
                 powerOutput: p.powerOutput,
                 chargerType: p.chargerType,
               })) ?? [],
-            perHour: station.pricing?.perHour ?? 0,
-            depositAmount: station.pricing?.depositAmount ?? 0,
-            openTime: station.operatingHours?.open ?? "06:00",
-            closeTime: station.operatingHours?.close ?? "22:00",
-            amenities: station.amenities ?? [],
+            perHour: s.pricing?.perHour ?? 0,
+            depositAmount: s.pricing?.depositAmount ?? 0,
+            openTime: s.operatingHours?.open ?? "06:00",
+            closeTime: s.operatingHours?.close ?? "22:00",
+            amenities: s.amenities ?? [],
           });
         }
       } catch (err) {
@@ -173,10 +175,15 @@ export default function EditStationPage({
           },
         },
         telephone: data.telephone || "",
-        chargingPorts: data.chargingPorts.map((port) => ({
-          ...port,
-          status: "available",
-        })),
+        chargingPorts: data.chargingPorts.map((port, index) => {
+          // Preserve existing port status when editing (don't reset to available)
+          const existingPort = station?.chargingPorts?.[index];
+          return {
+            ...port,
+            ...(existingPort?._id ? { _id: existingPort._id } : {}),
+            status: existingPort?.status || "available",
+          };
+        }),
         pricing: {
           perHour: data.perHour,
           depositAmount: data.depositAmount,

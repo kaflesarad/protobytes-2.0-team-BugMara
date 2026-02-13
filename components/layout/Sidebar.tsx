@@ -86,6 +86,16 @@ export function Sidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
+  // Close mobile sidebar on Escape key
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
+
   // Hide sidebar on auth pages
   const isAuthPage =
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");

@@ -18,7 +18,21 @@ export async function POST(req: Request) {
 
     // estimatedDuration is in minutes from the frontend
     const durationMinutes = Number(estimatedDuration);
+    if (isNaN(durationMinutes) || durationMinutes <= 0 || durationMinutes > 1440) {
+      return NextResponse.json(
+        { error: "estimatedDuration must be between 1 and 1440 minutes" },
+        { status: 400 }
+      );
+    }
     const durationHours = durationMinutes / 60;
+
+    const startDate = new Date(startTime);
+    if (isNaN(startDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid startTime format" },
+        { status: 400 }
+      );
+    }
 
     let station;
 
@@ -52,7 +66,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const start = new Date(startTime);
+    const start = startDate;
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     // Only check DB overlaps if station is in DB (not file-based)

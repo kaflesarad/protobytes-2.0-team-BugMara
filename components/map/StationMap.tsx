@@ -178,6 +178,12 @@ export function StationMap({
   const [etaSeconds, setEtaSeconds] = useState(0);
   const [followCamera, setFollowCamera] = useState(true);
   const userInteractedRef = useRef(false);
+  const hasFlownToUserRef = useRef(false);
+  const lastFittedRouteRef = useRef<string | null>(null);
+
+  // Stable primitive values for dependency arrays (avoid object-reference churn)
+  const centerLat = center.lat;
+  const centerLng = center.lng;
 
   /* ─── Click on map → find nearest station to open popup ─── */
   const handleMapClick = useCallback(
@@ -241,8 +247,8 @@ export function StationMap({
     );
     if (validStations.length === 0 && !userLocation) return;
 
-    const refLat = center.lat;
-    const refLng = center.lng;
+    const refLat = centerLat;
+    const refLng = centerLng;
     const refX = lngToMercX(refLng);
     const refY = latToMercY(refLat);
     const scale = meterScale(refLat);
@@ -385,10 +391,8 @@ export function StationMap({
       );
       renderer?.dispose();
     };
-  // NOTE: only rebuild 3D scene when stations/center/mapLoaded change,
-  // NOT when userLocation/heading changes (handled via refs below)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapLoaded, stations, center]);
+    
+  }, [mapLoaded, stations, centerLat, centerLng]);
 
   /* ─── Real-time car position + heading update (via refs) ─── */
   useEffect(() => {
@@ -496,11 +500,20 @@ export function StationMap({
 
   /* ─── Fit map to route bounds when route is set (not in nav mode) ─── */
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !routeData || navigationMode) return;
-    const map = mapRef.current.getMap();
+    if (!routeData) {
+      lastFittedRouteRef.current = null;
+      return;
+    }
+    if (!mapLoaded || !mapRef.current || navigationMode) return;
     const coords = routeData.geometry.coordinates;
     if (coords.length < 2) return;
 
+    // Only fit bounds once per distinct route (prevent re-zoom on reference change)
+    const routeKey = `${coords[0][0]},${coords[0][1]}-${coords[coords.length - 1][0]},${coords[coords.length - 1][1]}`;
+    if (lastFittedRouteRef.current === routeKey) return;
+    lastFittedRouteRef.current = routeKey;
+
+    const map = mapRef.current.getMap();
     let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
     for (const [lng, lat] of coords) {
       if (lng < minLng) minLng = lng;
@@ -517,7 +530,15 @@ export function StationMap({
 
   /* ─── Fly to user location when set (no route, no nav) ─── */
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !userLocation || routeData || navigationMode) return;
+    if (!userLocation) {
+      hasFlownToUserRef.current = false;
+      return;
+    }
+    if (!mapLoaded || !mapRef.current || routeData || navigationMode) return;
+    // Only fly once per location activation (prevent re-zoom on reference change)
+    if (hasFlownToUserRef.current) return;
+    hasFlownToUserRef.current = true;
+
     const map = mapRef.current.getMap();
     map.flyTo({
       center: [userLocation.lng, userLocation.lat],

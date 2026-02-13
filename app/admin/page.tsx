@@ -69,6 +69,7 @@ export default function AdminDashboardPage() {
         }
       } catch (err) {
         console.error("Failed to fetch analytics:", err);
+        setError("Failed to load analytics. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -111,8 +112,6 @@ export default function AdminDashboardPage() {
       color: "text-blue-400",
       bg: "bg-blue-500/10",
       cardClass: "stat-card stat-card-blue",
-      change: "+12.5%",
-      changeUp: true,
     },
     {
       label: "Total Bookings",
@@ -121,8 +120,6 @@ export default function AdminDashboardPage() {
       color: "text-emerald-400",
       bg: "bg-emerald-500/10",
       cardClass: "stat-card stat-card-green",
-      change: "+8.2%",
-      changeUp: true,
     },
     {
       label: "Revenue",
@@ -131,8 +128,6 @@ export default function AdminDashboardPage() {
       color: "text-purple-400",
       bg: "bg-purple-500/10",
       cardClass: "stat-card stat-card-purple",
-      change: "+23.1%",
-      changeUp: true,
     },
     {
       label: "Active Sessions",
@@ -141,8 +136,6 @@ export default function AdminDashboardPage() {
       color: "text-amber-400",
       bg: "bg-amber-500/10",
       cardClass: "stat-card stat-card-amber",
-      change: "-3.4%",
-      changeUp: false,
     },
   ];
 
@@ -211,26 +204,6 @@ export default function AdminDashboardPage() {
                     <p className="mt-2 text-2xl font-bold text-foreground">
                       {stat.value}
                     </p>
-                    <div className="mt-1.5 flex items-center gap-1">
-                      {stat.changeUp ? (
-                        <TrendingUp className="h-3 w-3 text-emerald-400" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 text-red-400" />
-                      )}
-                      <span
-                        className={cn(
-                          "text-[10px] font-semibold",
-                          stat.changeUp
-                            ? "text-emerald-400"
-                            : "text-red-400"
-                        )}
-                      >
-                        {stat.change}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        vs last period
-                      </span>
-                    </div>
                   </div>
                   <div
                     className={cn(

@@ -81,6 +81,34 @@ export default function BookingPage({
       return;
     }
 
+    // Validate the booking is not in the past
+    const bookingTime = new Date(`${selectedDate}T${selectedTime}`);
+    if (isNaN(bookingTime.getTime())) {
+      setError("Invalid date or time selected.");
+      return;
+    }
+    if (bookingTime <= new Date()) {
+      setError("Booking time must be in the future.");
+      return;
+    }
+
+    // Validate against operating hours
+    if (station?.operatingHours) {
+      const [openH, openM] = station.operatingHours.open.split(":").map(Number);
+      const [closeH, closeM] = station.operatingHours.close.split(":").map(Number);
+      const bookingH = bookingTime.getHours();
+      const bookingM = bookingTime.getMinutes();
+      const bookingMinutes = bookingH * 60 + bookingM;
+      const openMinutes = openH * 60 + openM;
+      const closeMinutes = closeH * 60 + closeM;
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        setError(
+          `Station operates between ${station.operatingHours.open} and ${station.operatingHours.close}. Please select a valid time.`
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -107,10 +135,11 @@ export default function BookingPage({
         return;
       }
 
-      // Create booking
-      const bookRes = await fetch("/api/bookings", {
+      // Create booking via Khalti payment
+      const payRes = await fetch("/api/payments/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           stationId,
           portId: selectedPortId,
@@ -119,16 +148,22 @@ export default function BookingPage({
         }),
       });
 
-      if (!bookRes.ok) {
-        const bookData = await bookRes.json();
-        setError(bookData.message || "Failed to create booking.");
+      if (!payRes.ok) {
+        if (payRes.status === 401) {
+          // Session expired — redirect to sign-in and come back
+          window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        const payData = await payRes.json().catch(() => ({}));
+        setError(payData.error || `Payment request failed (${payRes.status}). Please try again.`);
         setSubmitting(false);
         return;
       }
 
-      const bookData = await bookRes.json();
-      const bookingId = bookData.booking?._id ?? bookData._id;
-      router.push(`/booking/confirmation/${bookingId}`);
+      const payData = await payRes.json();
+
+      // Redirect user to Khalti payment page
+      window.location.href = payData.payment_url;
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       setSubmitting(false);
@@ -306,6 +341,16 @@ export default function BookingPage({
                 {formatPrice(depositAmount)}
               </span>
             </div>
+            {station?.pricing?.perHour > 0 && selectedDuration > 0 && (
+              <div className="mt-3 flex items-center justify-between border-t border-primary/10 pt-3">
+                <span className="text-sm text-muted-foreground">
+                  Estimated charging cost ({formatDuration(selectedDuration)})
+                </span>
+                <span className="text-sm font-semibold text-foreground">
+                  {formatPrice(station.pricing.perHour * (selectedDuration / 60))}
+                </span>
+              </div>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">
               This deposit will be refunded if you cancel before your booking
               starts.

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { User, Building2, ShieldCheck, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SignInRole = "user" | "station-admin" | "super-admin";
+type SignInRole = "user" | "admin" | "superadmin";
 
 const roles = [
   {
@@ -18,7 +18,7 @@ const roles = [
     activeBorder: "border-blue-500 ring-blue-500/20",
   },
   {
-    id: "station-admin" as SignInRole,
+    id: "admin" as SignInRole,
     label: "Station Admin",
     description: "Station owner",
     icon: Building2,
@@ -27,7 +27,7 @@ const roles = [
     activeBorder: "border-amber-500 ring-amber-500/20",
   },
   {
-    id: "super-admin" as SignInRole,
+    id: "superadmin" as SignInRole,
     label: "Super Admin",
     description: "Platform admin",
     icon: ShieldCheck,
@@ -40,10 +40,9 @@ const roles = [
 export default function SignInPage() {
   const [selectedRole, setSelectedRole] = useState<SignInRole>("user");
 
-  const redirectUrl =
-    selectedRole === "super-admin" || selectedRole === "station-admin"
-      ? "/admin"
-      : "/dashboard";
+  // Route through auto-create so MongoDB user is ensured to exist,
+  // and redirect is based on the actual DB role (not just the UI selector)
+  const redirectUrl = `/api/users?autoCreate=true&role=${selectedRole}`;
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">

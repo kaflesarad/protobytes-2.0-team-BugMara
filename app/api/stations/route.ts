@@ -6,6 +6,11 @@ import User from "@/lib/models/User";
 import fs from "fs";
 import path from "path";
 
+/** Escape special regex characters to prevent ReDoS */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 interface RawStation {
   name: string;
   city: string;
@@ -92,13 +97,14 @@ export async function GET(req: Request) {
         const filter: Record<string, unknown> = { isActive: true };
 
         if (city) {
-          filter["location.city"] = { $regex: city, $options: "i" };
+          filter["location.city"] = { $regex: escapeRegex(city), $options: "i" };
         }
         if (search) {
+          const safeSearch = escapeRegex(search);
           filter.$or = [
-            { name: { $regex: search, $options: "i" } },
-            { "location.address": { $regex: search, $options: "i" } },
-            { "location.city": { $regex: search, $options: "i" } },
+            { name: { $regex: safeSearch, $options: "i" } },
+            { "location.address": { $regex: safeSearch, $options: "i" } },
+            { "location.city": { $regex: safeSearch, $options: "i" } },
           ];
         }
         if (vehicleType) {
@@ -171,9 +177,21 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
+    // Whitelist allowed fields to prevent overwriting rating/totalReviews
     const station = await Station.create({
-      ...body,
+      name: body.name,
+      location: body.location,
+      telephone: body.telephone || "",
+      vehicleTypes: body.vehicleTypes || [],
+      operatingHours: body.operatingHours || { open: "06:00", close: "22:00" },
+      chargingPorts: body.chargingPorts || [],
+      pricing: body.pricing || { perHour: 0, depositAmount: 500 },
+      amenities: body.amenities || [],
+      photos: body.photos || [],
       adminId: userId,
+      isActive: true,
+      rating: 0,
+      totalReviews: 0,
     });
 
     return NextResponse.json({ station }, { status: 201 });

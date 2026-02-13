@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -106,6 +106,12 @@ export default function AdminUsersPage() {
   };
 
   const deleteUser = async (userId: string, userName: string) => {
+    // Prevent self-deletion
+    if (user?.id && users.find(u => u._id === userId)?.clerkId === user.id) {
+      alert("You cannot delete your own account from the admin panel.");
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete "${userName}"? This action cannot be undone.`)) {
       return;
     }

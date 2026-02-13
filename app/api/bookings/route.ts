@@ -29,34 +29,20 @@ export async function GET(req: Request) {
       .lean();
 
     // Enrich bookings with station data
-    const enriched = bookings.map((booking) => {
-      const sid = String(booking.stationId);
-      if (sid.startsWith("station-")) {
-        const stationData = loadStationFromFile(sid);
-        return { ...booking, stationId: stationData || sid };
-      }
-      return booking;
-    });
-
-    // For DB-based bookings, populate station data
-    const dbBookingIds = bookings
-      .filter((b) => !String(b.stationId).startsWith("station-"))
-      .map((b) => b._id);
-
-    if (dbBookingIds.length > 0) {
-      const dbBookings = await Booking.find({ _id: { $in: dbBookingIds } })
-        .populate("stationId", "name location chargingPorts pricing photos")
-        .lean();
-
-      const dbMap = new Map(dbBookings.map((b) => [String(b._id), b]));
-
-      for (let i = 0; i < enriched.length; i++) {
-        const populated = dbMap.get(String(enriched[i]._id));
-        if (populated) {
-          enriched[i] = populated;
+    const enriched = await Promise.all(
+      bookings.map(async (booking) => {
+        const sid = String(booking.stationId);
+        if (sid.startsWith("station-")) {
+          const stationData = loadStationFromFile(sid);
+          return { ...booking, stationId: stationData || sid };
         }
-      }
-    }
+        // For DB-based bookings, populate station data in a single query
+        const populated = await Booking.findById(booking._id)
+          .populate("stationId", "name location chargingPorts pricing photos")
+          .lean();
+        return populated || booking;
+      })
+    );
 
     return NextResponse.json({ bookings: enriched }, { status: 200 });
   } catch (error) {
@@ -99,11 +85,31 @@ export async function POST(req: Request) {
       portId,
       startTime,
       estimatedDuration,
-      stripePaymentIntentId,
     } = body;
+
+    if (!stationId || !portId || !startTime || !estimatedDuration) {
+      return NextResponse.json(
+        { error: "stationId, portId, startTime, and estimatedDuration are required" },
+        { status: 400 }
+      );
+    }
 
     // estimatedDuration is in minutes from the frontend
     const durationMinutes = Number(estimatedDuration);
+    if (isNaN(durationMinutes) || durationMinutes <= 0 || durationMinutes > 1440) {
+      return NextResponse.json(
+        { error: "estimatedDuration must be between 1 and 1440 minutes" },
+        { status: 400 }
+      );
+    }
+
+    const startDate = new Date(startTime);
+    if (isNaN(startDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid startTime format" },
+        { status: 400 }
+      );
+    }
 
     const isFileBased = stationId.startsWith("station-");
     let stationData;
@@ -140,7 +146,7 @@ export async function POST(req: Request) {
       depositAmount = station.pricing.depositAmount;
     }
 
-    const start = new Date(startTime);
+    const start = startDate;
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     // Check for overlapping bookings
@@ -162,15 +168,14 @@ export async function POST(req: Request) {
       userId,
       userName: user.name,
       userEmail: user.email,
-      stationId: isFileBased ? stationId : stationId,
-      portId: isFileBased ? portId : portId,
+      stationId,
+      portId,
       startTime: start,
       estimatedDuration: durationMinutes,
       endTime: end,
-      status: stripePaymentIntentId ? "confirmed" : "pending",
+      status: "pending",
       deposit: {
         amount: depositAmount,
-        stripePaymentIntentId: stripePaymentIntentId || undefined,
         refunded: false,
       },
     });

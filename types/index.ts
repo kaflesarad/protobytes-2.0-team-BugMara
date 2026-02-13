@@ -62,7 +62,8 @@ export interface IBooking {
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
   deposit: {
     amount: number;
-    stripePaymentIntentId?: string;
+    khaltiPidx?: string;
+    khaltiTransactionId?: string;
     refunded: boolean;
   };
   qrCode?: string;

@@ -121,20 +121,17 @@ export async function PUT(
       await Station.updateOne(
         { _id: booking.stationId, "chargingPorts._id": booking.portId },
         {
-          $set: {
-            "chargingPorts.$.status": "available",
-            "chargingPorts.$.currentBookingId": undefined,
-          },
+          $set: { "chargingPorts.$.status": "available" },
+          $unset: { "chargingPorts.$.currentBookingId": "" },
         }
       );
     }
 
     await booking.save();
 
-    const updatedBooking = await Booking.findById(id).lean();
-
     // Enrich with station data
     if (sid.startsWith("station-")) {
+      const updatedBooking = await Booking.findById(id).lean();
       const stationData = loadStationFromFile(sid);
       return NextResponse.json(
         { booking: { ...updatedBooking, stationId: stationData || sid } },
@@ -209,7 +206,10 @@ export async function PATCH(
     if ((status === "completed" || status === "cancelled") && !sid.startsWith("station-")) {
       await Station.updateOne(
         { _id: booking.stationId, "chargingPorts._id": booking.portId },
-        { $set: { "chargingPorts.$.status": "available", "chargingPorts.$.currentBookingId": undefined } }
+        {
+          $set: { "chargingPorts.$.status": "available" },
+          $unset: { "chargingPorts.$.currentBookingId": "" },
+        }
       );
     }
 
@@ -276,10 +276,8 @@ export async function DELETE(
       await Station.updateOne(
         { _id: booking.stationId, "chargingPorts._id": booking.portId },
         {
-          $set: {
-            "chargingPorts.$.status": "available",
-            "chargingPorts.$.currentBookingId": undefined,
-          },
+          $set: { "chargingPorts.$.status": "available" },
+          $unset: { "chargingPorts.$.currentBookingId": "" },
         }
       );
     }

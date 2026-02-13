@@ -30,13 +30,9 @@ export async function GET(req: Request) {
         `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
         "User";
 
-      // Determine role - only allow "user" and "admin" via self-signup
-      // "superadmin" can only be assigned by another superadmin
-      let role: "user" | "admin" | "superadmin" = "user";
-      if (roleParam === "admin") {
-        role = "admin";
-      }
-      // superadmin cannot be self-assigned during signup
+      // Role is always "user" on self-signup.
+      // Admin/superadmin can only be assigned by a superadmin via the admin panel.
+      const role: "user" | "admin" | "superadmin" = "user";
 
       const newUser = await User.create({
         clerkId: userId,
@@ -46,10 +42,8 @@ export async function GET(req: Request) {
         favoriteStations: [],
       });
 
-      // Redirect to appropriate page based on role
-      const redirectUrl =
-        role === "admin" ? "/admin" : "/dashboard";
-      return NextResponse.redirect(new URL(redirectUrl, req.url));
+      // New users are always "user" role, so redirect to dashboard
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     if (!user && !autoCreate) {

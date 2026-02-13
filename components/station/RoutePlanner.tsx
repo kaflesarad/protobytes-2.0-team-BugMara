@@ -77,6 +77,13 @@ export function RoutePlanner({
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const geocode = useCallback(
     async (query: string): Promise<GeocodeSuggestion[]> => {
       if (!token || query.length < 3) return [];

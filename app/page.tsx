@@ -41,6 +41,7 @@ function calcBearing(lat1: number, lng1: number, lat2: number, lng2: number): nu
 export default function HomePage() {
   const [stations, setStations] = useState<IStation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
@@ -62,9 +63,12 @@ export default function HomePage() {
         if (res.ok) {
           const data = await res.json();
           setStations(data.stations ?? data);
+        } else {
+          setFetchError("Failed to load stations. Please try again.");
         }
       } catch (err) {
         console.error("Failed to fetch stations:", err);
+        setFetchError("Network error. Please check your connection.");
       } finally {
         setLoading(false);
       }
@@ -271,6 +275,24 @@ export default function HomePage() {
           {loading ? (
             <div className="flex h-40 items-center justify-center">
               <Spinner size="md" />
+            </div>
+          ) : fetchError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+                <Zap className="h-5 w-5 text-red-400" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                Something went wrong
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {fetchError}
+              </p>
+              <button
+                onClick={() => { setFetchError(""); setLoading(true); fetch("/api/stations").then(r => r.json()).then(d => { setStations(d.stations ?? d); }).catch(() => setFetchError("Failed to load stations.")).finally(() => setLoading(false)); }}
+                className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
+              >
+                Try Again
+              </button>
             </div>
           ) : filteredStations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">

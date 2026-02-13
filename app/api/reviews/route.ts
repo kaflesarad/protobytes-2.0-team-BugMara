@@ -20,8 +20,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
     const skip = (page - 1) * limit;
 
     const [reviews, total] = await Promise.all([
@@ -78,12 +78,16 @@ export async function POST(req: Request) {
       );
     }
 
-    if (rating < 1 || rating > 5) {
+    const numericRating = Math.round(Number(rating));
+    if (isNaN(numericRating) || numericRating < 1 || numericRating > 5) {
       return NextResponse.json(
-        { error: "Rating must be between 1 and 5" },
+        { error: "Rating must be an integer between 1 and 5" },
         { status: 400 }
       );
     }
+
+    // Enforce comment length
+    const trimmedComment = (comment || "").trim().slice(0, 500);
 
     const station = await Station.findById(stationId);
     if (!station) {
@@ -130,18 +134,19 @@ export async function POST(req: Request) {
       userName: user.name,
       stationId,
       bookingId: bookingId || undefined,
-      rating,
-      comment: comment || "",
+      rating: numericRating,
+      comment: trimmedComment,
     });
 
-    const allReviews = await Review.find({ stationId });
-    const totalReviews = allReviews.length;
-    const avgRating =
-      allReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews;
+    // Use aggregation pipeline for efficient average calculation
+    const [stats] = await Review.aggregate([
+      { $match: { stationId: station._id } },
+      { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ]);
 
     await Station.findByIdAndUpdate(stationId, {
-      rating: Math.round(avgRating * 10) / 10,
-      totalReviews,
+      rating: stats ? Math.round(stats.avg * 10) / 10 : numericRating,
+      totalReviews: stats?.count ?? 1,
     });
 
     return NextResponse.json({ review }, { status: 201 });

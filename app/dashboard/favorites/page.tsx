@@ -19,6 +19,7 @@ export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<IStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState("");
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -39,15 +40,19 @@ export default function FavoritesPage() {
 
   const handleRemove = async (stationId: string) => {
     setRemovingId(stationId);
+    setRemoveError("");
     try {
       const res = await fetch(`/api/users/favorites/${stationId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         setFavorites((prev) => prev.filter((s) => s._id !== stationId));
+      } else {
+        setRemoveError("Failed to remove favorite. Please try again.");
       }
     } catch (err) {
       console.error("Failed to remove favorite:", err);
+      setRemoveError("Network error. Please try again.");
     } finally {
       setRemovingId(null);
     }
@@ -75,6 +80,12 @@ export default function FavoritesPage() {
         <p className="mt-1 text-muted-foreground">
           Stations you have saved for quick access.
         </p>
+
+        {removeError && (
+          <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+            {removeError}
+          </div>
+        )}
 
         {favorites.length === 0 ? (
           <div className="mt-8 rounded-xl border border-border bg-muted/50 p-8 text-center">

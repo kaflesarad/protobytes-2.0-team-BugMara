@@ -79,6 +79,7 @@ export function ReviewForm({ stationId, bookingId, onSubmitted }: ReviewFormProp
               onMouseEnter={() => setHoveredRating(star)}
               onMouseLeave={() => setHoveredRating(0)}
               onClick={() => setRating(star)}
+              aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
               className="p-0.5 transition-transform hover:scale-110"
             >
               <Star
@@ -106,6 +107,7 @@ export function ReviewForm({ stationId, bookingId, onSubmitted }: ReviewFormProp
         <textarea
           id="review-comment"
           rows={3}
+          maxLength={500}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Share your experience at this charging station..."

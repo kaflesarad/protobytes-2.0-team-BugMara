@@ -18,7 +18,18 @@ import {
 import { cn, getConnectorLabel } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import type { IStation } from "@/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const amenityLabels: Record<string, string> = {
+  wifi: "WiFi",
+  parking: "Parking",
+  food: "Food",
+  coffee: "Coffee",
+  accomodation: "Accommodation",
+  accommodation: "Accommodation",
+  restroom: "Restroom",
+  petrol: "Petrol",
+};
 
 const amenityIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   wifi: Wifi,
@@ -42,6 +53,11 @@ export function StationCard({
   isFavorite = false,
 }: StationCardProps) {
   const [favorite, setFavorite] = useState(isFavorite);
+
+  // Sync local state when prop changes (e.g., after re-fetch)
+  useEffect(() => {
+    setFavorite(isFavorite);
+  }, [isFavorite]);
 
   const availablePorts =
     station.chargingPorts?.filter((p) => p.status === "available").length ?? 0;
@@ -112,7 +128,7 @@ export function StationCard({
                 <div
                   key={amenity}
                   className="flex h-7 w-7 items-center justify-center rounded-md bg-muted"
-                  title={amenity}
+                  title={amenityLabels[amenity] || amenity}
                 >
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>

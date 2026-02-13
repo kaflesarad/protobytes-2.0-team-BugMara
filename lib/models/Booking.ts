@@ -12,7 +12,8 @@ export interface IBookingDocument extends Document {
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
   deposit: {
     amount: number;
-    stripePaymentIntentId?: string;
+    khaltiPidx?: string;
+    khaltiTransactionId?: string;
     refunded: boolean;
   };
   qrCode?: string;
@@ -42,7 +43,8 @@ const BookingSchema = new Schema<IBookingDocument>(
     },
     deposit: {
       amount: { type: Number, default: 0 },
-      stripePaymentIntentId: { type: String },
+      khaltiPidx: { type: String },
+      khaltiTransactionId: { type: String },
       refunded: { type: Boolean, default: false },
     },
     qrCode: { type: String },

@@ -1,18 +1,19 @@
 import fs from "fs";
 import path from "path";
 
-export function loadStationFromFile(id: string) {
+// Cache file data in memory to avoid re-reading on every call
+let cachedStations: ReturnType<typeof parseStationFromFile>[] | null = null;
+let cachedRawData: unknown[] | null = null;
+
+function loadRawData(): unknown[] {
+  if (cachedRawData) return cachedRawData;
   const filePath = path.join(process.cwd(), "data", "stations.json");
   const raw = fs.readFileSync(filePath, "utf-8");
-  const data = JSON.parse(raw);
+  cachedRawData = JSON.parse(raw);
+  return cachedRawData!;
+}
 
-  const match = id.match(/^station-(\d+)$/);
-  if (!match) return null;
-
-  const index = parseInt(match[1], 10);
-  if (index < 0 || index >= data.length) return null;
-
-  const s = data[index];
+function parseStationFromFile(s: any, index: number) {
   const ports = (s.plugs || []).map(
     (plug: { plug: string; power: string; type: string }, pIndex: number) => ({
       _id: `file-${index}-${pIndex}`,
@@ -60,4 +61,21 @@ export function loadStationFromFile(id: string) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function loadStationFromFile(id: string) {
+  const data = loadRawData();
+
+  const match = id.match(/^station-(\d+)$/);
+  if (!match) return null;
+
+  const index = parseInt(match[1], 10);
+  if (index < 0 || index >= data.length) return null;
+
+  return parseStationFromFile(data[index], index);
+}
+
+export function loadAllStationsFromFile() {
+  const data = loadRawData();
+  return data.map((s, index) => parseStationFromFile(s, index));
 }

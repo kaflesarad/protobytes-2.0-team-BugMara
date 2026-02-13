@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -46,17 +46,90 @@ export default function BookingConfirmationPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [bookingId, setBookingId] = useState("");
   const [booking, setBooking] = useState<IBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   useEffect(() => {
     params.then((p) => setBookingId(p.id));
   }, [params]);
 
+  // Verify Khalti payment when redirected back with pidx
   useEffect(() => {
     if (!bookingId) return;
+    const pidx = searchParams.get("pidx");
+    const status = searchParams.get("status");
+
+    if (!pidx) return; // No Khalti callback — normal page load
+
+    if (status === "User canceled") {
+      setPaymentError("Payment was cancelled. Your booking is still pending.");
+      // Still fetch the booking to show details
+      fetchBookingDetails();
+      return;
+    }
+
+    async function fetchBookingDetails() {
+      try {
+        const res = await fetch(`/api/bookings/${bookingId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBooking(data.booking ?? data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch booking:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function verifyPayment() {
+      setVerifying(true);
+      try {
+        const res = await fetch("/api/payments/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pidx, bookingId }),
+        });
+        const data = await res.json();
+        if (data.verified && data.booking) {
+          setBooking(data.booking);
+        } else if (data.status === "User canceled" || data.status === "Expired") {
+          setPaymentError(
+            `Payment ${data.status === "Expired" ? "expired" : "was cancelled"}. Please try again.`
+          );
+          // Fetch booking to show current status
+          await fetchBookingDetails();
+        } else if (data.status === "Pending" || data.status === "Initiated") {
+          setPaymentError("Payment is still processing. Please refresh in a moment.");
+          await fetchBookingDetails();
+        } else {
+          await fetchBookingDetails();
+        }
+      } catch (err) {
+        console.error("Payment verification failed:", err);
+        setPaymentError("Failed to verify payment. Please contact support.");
+        await fetchBookingDetails();
+      } finally {
+        setVerifying(false);
+        setLoading(false);
+      }
+    }
+
+    verifyPayment();
+  }, [bookingId, searchParams]);
+
+  // Fetch booking — skip if payment verification is in progress (it will set booking)
+  useEffect(() => {
+    if (!bookingId) return;
+
+    // If there's a pidx in the URL, the verify effect handles fetching
+    const pidx = searchParams.get("pidx");
+    if (pidx) return;
 
     async function fetchBooking() {
       try {
@@ -72,7 +145,7 @@ export default function BookingConfirmationPage({
       }
     }
     fetchBooking();
-  }, [bookingId]);
+  }, [bookingId, searchParams]);
 
   const handleCancel = async () => {
     if (!booking) return;
@@ -99,13 +172,13 @@ export default function BookingConfirmationPage({
     }
   };
 
-  if (loading) {
+  if (loading || verifying) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <Spinner size="lg" />
           <p className="mt-4 text-sm text-muted-foreground">
-            Loading booking details...
+            {verifying ? "Verifying payment..." : "Loading booking details..."}
           </p>
         </div>
       </div>
@@ -155,11 +228,30 @@ export default function BookingConfirmationPage({
 
         {/* Confirmation Header */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <CheckCircle2 className="h-8 w-8 text-primary" />
+          <div
+            className={cn(
+              "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full",
+              booking.status === "cancelled"
+                ? "bg-red-500/10"
+                : booking.status === "pending"
+                ? "bg-yellow-500/10"
+                : "bg-primary/10"
+            )}
+          >
+            {booking.status === "cancelled" ? (
+              <X className="h-8 w-8 text-red-500" />
+            ) : booking.status === "pending" ? (
+              <Clock className="h-8 w-8 text-yellow-500" />
+            ) : (
+              <CheckCircle2 className="h-8 w-8 text-primary" />
+            )}
           </div>
           <h1 className="text-2xl font-bold text-foreground">
-            Booking {booking.status === "cancelled" ? "Cancelled" : "Confirmed"}
+            {booking.status === "cancelled"
+              ? "Booking Cancelled"
+              : booking.status === "pending"
+              ? "Booking Pending"
+              : "Booking Confirmed"}
           </h1>
           <p className="mt-1 text-muted-foreground">
             Booking ID:{" "}
@@ -173,6 +265,13 @@ export default function BookingConfirmationPage({
             {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
           </Badge>
         </div>
+
+        {/* Payment error banner */}
+        {paymentError && (
+          <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-center text-sm text-red-400">
+            {paymentError}
+          </div>
+        )}
 
         {/* Booking Details */}
         <div className="mt-8 rounded-xl border border-border bg-card p-6">

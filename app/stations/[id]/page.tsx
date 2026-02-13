@@ -189,15 +189,24 @@ export default async function StationDetailPage({
             {/* Map */}
             {station.location?.coordinates && (
               <div className="mt-6 overflow-hidden rounded-xl border border-border/50">
-                <div className="h-[300px] bg-muted">
-                  <iframe
-                    title="Station Location"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
+                <div className="h-[300px] bg-muted relative">
+                  <img
+                    alt={`Map showing ${station.name} location`}
+                    width={800}
+                    height={300}
                     loading="lazy"
-                    src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""}&q=${station.location.coordinates.lat},${station.location.coordinates.lng}&zoom=15`}
+                    className="h-full w-full object-cover"
+                    src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-l+3b82f6(${station.location.coordinates.lng},${station.location.coordinates.lat})/${station.location.coordinates.lng},${station.location.coordinates.lat},14,0/800x300@2x?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""}`}
                   />
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${station.location.coordinates.lat},${station.location.coordinates.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-lg bg-card/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground border border-border/50 hover:bg-card transition-colors"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    Open in Google Maps
+                  </a>
                 </div>
               </div>
             )}
